@@ -1,37 +1,74 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 export default function KrownFrame() {
+  // 1. STATE VARIABLES (The Brains of the UI)
   const [messages, setMessages] = useState([
     { role: "system", content: "Greetings, Tenno. I am Cephalon Krown. Status report required." }
   ]);
   const [input, setInput] = useState("");
   const [mr, setMr] = useState(0);
   const [loading, setLoading] = useState(false);
+  
+  // Auto-scroll to bottom
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+  useEffect(scrollToBottom, [messages]);
 
+  // 2. THE STREAMING FUNCTION (Fast Response)
   const handleSend = async () => {
     if (!input.trim()) return;
 
-    const newMsg = { role: "user", content: input };
-    setMessages((prev) => [...prev, newMsg]);
+    // Add user message immediately
+    const userMsg = { role: "user", content: input };
+    setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setLoading(true);
+
+    // Create a placeholder for the AI's answer
+    setMessages((prev) => [...prev, { role: "system", content: "" }]);
 
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [...messages, newMsg], userMR: mr }),
+        body: JSON.stringify({ messages: [...messages, userMsg], userMR: mr }),
       });
 
-      const data = await res.json();
-      setMessages((prev) => [...prev, { role: "system", content: data.text }]);
+      if (!res.body) throw new Error("No response body");
+
+      // Read the stream
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let done = false;
+
+      while (!done) {
+        const { value, done: doneReading } = await reader.read();
+        done = doneReading;
+        const chunkValue = decoder.decode(value, { stream: true });
+
+        // Update the LAST message (the placeholder) with the new chunk
+        setMessages((prev) => {
+          const newMessages = [...prev];
+          const lastMsg = newMessages[newMessages.length - 1];
+          lastMsg.content += chunkValue;
+          return newMessages;
+        });
+      }
     } catch (error) {
-      setMessages((prev) => [...prev, { role: "system", content: "Error: Connection severed." }]);
+      setMessages((prev) => {
+        const newMessages = [...prev];
+        const lastMsg = newMessages[newMessages.length - 1];
+        lastMsg.content = "Error: Connection severed. Visual sensors offline.";
+        return newMessages;
+      });
     }
     setLoading(false);
   };
 
+  // 3. THE VISUALS (HTML/JSX)
   return (
     <main className="min-h-screen bg-[#0a0a0a] text-[#e0e0e0] font-mono p-6 flex flex-col relative overflow-hidden">
       
@@ -57,7 +94,6 @@ export default function KrownFrame() {
           <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[80%] p-4 rounded-sm border ${msg.role === 'user' ? 'bg-[#151515] border-[#333]' : 'bg-[#0f171a] border-[#00eeff]/20'}`}>
               
-              {/* THIS IS THE KEY FIX: whitespace-pre-wrap */}
               <p className="text-sm leading-relaxed whitespace-pre-wrap">
                 {msg.content}
               </p>
@@ -65,7 +101,8 @@ export default function KrownFrame() {
             </div>
           </div>
         ))}
-        {loading && <div className="text-[#00eeff] text-xs animate-pulse">Analyzing...</div>}
+        {loading && <div className="text-[#00eeff] text-xs animate-pulse">Scanning Void frequencies...</div>}
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Input Field Area */}

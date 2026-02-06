@@ -1,5 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { NextResponse } from "next/server";
+
+// 1. IMPORTANT: Set the runtime to 'edge' for faster, streaming responses
+export const runtime = 'edge';
 
 export async function POST(req: Request) {
   try {
@@ -7,38 +9,40 @@ export async function POST(req: Request) {
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      return NextResponse.json(
-        { text: "System Failure: API Key missing." },
-        { status: 500 }
-      );
+      return new Response("System Failure: API Key missing.", { status: 500 });
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    
-    // NOTE: Use the model name that worked for you (e.g., "gemini-3-flash-preview" or "gemini-2.0-flash")
     const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
 
-    // STRICT INSTRUCTIONS: Short answers, bullet points, no fluff.
     const systemInstruction = `You are Cephalon Krown, a high-efficiency Warframe advisor.
     Current User Status: Mastery Rank ${userMR}.
-
     OPERATIONAL DIRECTIVES:
     1. BE CONCISE: Limit responses to 3-4 sentences max.
     2. USE LISTS: When recommending weapons/frames, ALWAYS use bullet points.
-    3. NO FLUFF: Skip long greetings. Get straight to the data.
-    4. RANK LOCK: Never suggest gear above MR ${userMR}.
-    
-    Format the response to be scanned quickly during combat.`;
+    3. RANK LOCK: Never suggest gear above MR ${userMR}.`;
 
     const prompt = `${systemInstruction}\n\nUser Query: ${messages[messages.length - 1].content}`;
 
-    const result = await model.generateContent(prompt);
+    // 2. Request a STREAM instead of a standard response
+    const result = await model.generateContentStream(prompt);
 
-    return NextResponse.json({ text: result.response.text() });
+    // 3. Create a readable stream to send chunks back to the frontend
+    const stream = new ReadableStream({
+      async start(controller) {
+        for await (const chunk of result.stream) {
+          const text = chunk.text();
+          if (text) {
+            controller.enqueue(new TextEncoder().encode(text));
+          }
+        }
+        controller.close();
+      },
+    });
+
+    return new Response(stream);
+
   } catch (error) {
-    return NextResponse.json(
-      { text: "Cephalon Krown is offline. Check console logs." },
-      { status: 500 }
-    );
+    return new Response("Error: Connection severed.", { status: 500 });
   }
 }
