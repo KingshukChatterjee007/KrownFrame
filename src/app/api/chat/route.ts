@@ -1,6 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// 1. IMPORTANT: Set the runtime to 'edge' for faster, streaming responses
 export const runtime = 'edge';
 
 export async function POST(req: Request) {
@@ -13,21 +12,40 @@ export async function POST(req: Request) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
+    
+    // Using the ID that is working for you
     const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
 
-    const systemInstruction = `You are Cephalon Krown, a high-efficiency Warframe advisor.
-    Current User Status: Mastery Rank ${userMR}.
-    OPERATIONAL DIRECTIVES:
-    1. BE CONCISE: Limit responses to 3-4 sentences max.
-    2. USE LISTS: When recommending weapons/frames, ALWAYS use bullet points.
-    3. RANK LOCK: Never suggest gear above MR ${userMR}.`;
+    // --- SECRET CONTEXT (DO NOT OUTPUT) ---
+    const secretData = `
+    [GAMEPLAY DATA - REFERENCE ONLY - DO NOT RECITE]
+    [Update 41: Old Peace]
+    - Uriel (Warframe): Fire/Demon summoner.
+    - Arcane Concentration: +60% Duration.
+    - Arcane Persistence: Cap dmg at 500/s if Armor > 700.
+    [Update 38: 1999]
+    - Arcane Crepuscular: +30% Str / +3x Crit (Invisible).
+    `;
 
-    const prompt = `${systemInstruction}\n\nUser Query: ${messages[messages.length - 1].content}`;
+    // --- BEHAVIOR CONTROLS ---
+    const systemInstruction = `
+    ROLE: You are Cephalon Krown.
+    USER MR: ${userMR}.
+    
+    [PRIME DIRECTIVES]
+    1. SILENCE PROTOCOL: Never list patch notes, updates, or database contents in your greeting.
+    2. GREETING: If the user says "hello", say ONLY: "Greetings, Operator. Systems are calibrated. Awaiting your command."
+    3. ON-DEMAND: Only use the [GAMEPLAY DATA] if the user asks a specific question about those items.
+    4. TONE: Concise, robotic, elite.
+    
+    CONTEXT: ${secretData}
+    `;
 
-    // 2. Request a STREAM instead of a standard response
+    const lastMessage = messages[messages.length - 1].content;
+    const prompt = `${systemInstruction}\n\nOperator Query: ${lastMessage}`;
+
     const result = await model.generateContentStream(prompt);
 
-    // 3. Create a readable stream to send chunks back to the frontend
     const stream = new ReadableStream({
       async start(controller) {
         for await (const chunk of result.stream) {
@@ -42,7 +60,9 @@ export async function POST(req: Request) {
 
     return new Response(stream);
 
-  } catch (error) {
-    return new Response("Error: Connection severed.", { status: 500 });
+  } catch (error: any) {
+    console.error("--- GEMINI API ERROR ---");
+    console.error(error.message);
+    return new Response(`Error: ${error.message}`, { status: 500 });
   }
 }
