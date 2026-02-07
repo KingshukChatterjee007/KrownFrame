@@ -1,16 +1,53 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { Send, Cpu, Shield, Terminal, Activity, Zap, Server, User, ChevronRight } from "lucide-react";
+import { Send, Cpu, Shield, Terminal, Activity, Zap, Server, User, ChevronRight, Trash2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 export default function KrownFrame() {
-  const [messages, setMessages] = useState([
-    { role: "system", content: "Operator, the Void link is stable. Awaiting your command." }
-  ]);
+  // 1. Initialize with default system message
+  const defaultState = [{ role: "system", content: "Operator, the Void link is stable. Awaiting your command." }];
+  const [messages, setMessages] = useState(defaultState);
+  
   const [input, setInput] = useState("");
   const [mr, setMr] = useState(8); 
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [isClient, setIsClient] = useState(false); // Fix for Next.js Hydration
+
+  // 2. LOAD HISTORY (Run once on startup)
+  useEffect(() => {
+    setIsClient(true); // We are on the client now
+    const saved = localStorage.getItem("krownframe-history");
+    const savedMr = localStorage.getItem("krownframe-mr");
+    
+    if (saved) {
+      try {
+        setMessages(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to parse history");
+      }
+    }
+    if (savedMr) {
+      setMr(Number(savedMr));
+    }
+  }, []);
+
+  // 3. SAVE HISTORY (Run whenever messages or MR change)
+  useEffect(() => {
+    if (isClient) {
+      localStorage.setItem("krownframe-history", JSON.stringify(messages));
+      localStorage.setItem("krownframe-mr", String(mr));
+    }
+  }, [messages, mr, isClient]);
+
+  // 4. CLEAR HISTORY FUNCTION
+  const clearHistory = () => {
+    if (confirm("Sever Void Link? This will wipe your memory.")) {
+      setMessages(defaultState);
+      localStorage.removeItem("krownframe-history");
+      window.location.reload(); // Hard refresh to clear visuals
+    }
+  };
   
   const isChatting = messages.length > 1;
 
@@ -63,6 +100,9 @@ export default function KrownFrame() {
     setLoading(false);
   };
 
+  // Prevent hydration mismatch by returning null until client loads
+  if (!isClient) return null;
+
   return (
     <main className="h-screen w-full flex flex-col relative overflow-hidden bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#0f172a] via-[#020617] to-black text-cyan-50 font-sans selection:bg-cyan-500/30 selection:text-cyan-200">
       
@@ -82,8 +122,18 @@ export default function KrownFrame() {
             </span>
         </div>
 
-        {/* RIGHT: MINI MR SELECTOR */}
+        {/* RIGHT: CONTROLS (MR + RESET) */}
         <div className={`flex items-center gap-4 pl-6 border-l border-white/5 h-10 transition-all duration-500 ${isChatting ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-[-20px] pointer-events-none'}`}>
+          
+          {/* RESET BUTTON (New) */}
+          <button 
+             onClick={clearHistory}
+             className="group relative flex items-center justify-center w-8 h-8 rounded-md bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/50 transition-all"
+             title="Clear Memory"
+          >
+             <Trash2 size={14} className="text-red-400 group-hover:text-red-200" />
+          </button>
+
           <div className="hidden md:block text-right leading-tight">
              <p className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">Operator</p>
              <p className="text-[9px] text-cyan-500/80 uppercase tracking-widest font-bold">Rank Config</p>
@@ -195,7 +245,7 @@ export default function KrownFrame() {
                         : 'bg-black/40 border-l-2 border-cyan-500/50 text-slate-200 rounded-r-2xl border-y border-r border-white/5'}
                     `}>
                       
-                      {/* --- THE FIX: className is on the DIV, NOT ReactMarkdown --- */}
+                      {/* --- MARKDOWN WRAPPER --- */}
                       <div className="prose prose-invert prose-p:leading-relaxed prose-pre:bg-black/50 prose-pre:p-2 prose-pre:rounded-lg max-w-none">
                         <ReactMarkdown 
                           components={{
@@ -204,7 +254,6 @@ export default function KrownFrame() {
                             li: ({node, ...props}: any) => <li className="marker:text-cyan-500" {...props} />
                           }}
                         >
-                          {/* Safety Check for empty content */}
                           {msg.content || ""}
                         </ReactMarkdown>
                       </div>
