@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { Send, Cpu, Shield, Terminal, Activity, Zap, Server, User, ChevronRight } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 
 export default function KrownFrame() {
   const [messages, setMessages] = useState([
@@ -68,9 +69,21 @@ export default function KrownFrame() {
       {/* 1. LIGHTING FX */}
       <div className="absolute top-[-20%] left-[50%] -translate-x-1/2 w-[800px] h-[400px] bg-blue-900/20 blur-[120px] rounded-full pointer-events-none z-0 mix-blend-screen opacity-50"></div>
       
-      {/* 2. HEADER (MR is hidden here initially, appears only when chatting) */}
-      <header className="h-20 shrink-0 w-full flex items-center justify-end px-10 z-50 relative transition-all duration-500">
-        <div className={`flex items-center gap-4 pl-6 border-l border-white/5 h-10 transition-all duration-500 ${!isChatting ? 'opacity-0 translate-y-[-20px]' : 'opacity-100 translate-y-0'}`}>
+      {/* 2. HEADER */}
+      <header className="h-20 shrink-0 w-full flex items-center justify-between px-6 md:px-10 z-50 relative transition-all duration-500">
+        
+        {/* LEFT: LOGO */}
+        <div className={`flex items-center gap-3 transition-all duration-700 ${isChatting ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10 pointer-events-none'}`}>
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.4)]">
+                <Cpu className="text-white" size={16} />
+            </div>
+            <span className="text-lg font-bold tracking-[0.1em] uppercase font-mono text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60">
+                KrownFrame
+            </span>
+        </div>
+
+        {/* RIGHT: MINI MR SELECTOR */}
+        <div className={`flex items-center gap-4 pl-6 border-l border-white/5 h-10 transition-all duration-500 ${isChatting ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-[-20px] pointer-events-none'}`}>
           <div className="hidden md:block text-right leading-tight">
              <p className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">Operator</p>
              <p className="text-[9px] text-cyan-500/80 uppercase tracking-widest font-bold">Rank Config</p>
@@ -110,7 +123,7 @@ export default function KrownFrame() {
           {!isChatting && (
             <div className="flex-1 flex flex-col items-center justify-center animate-in fade-in zoom-in duration-1000">
                
-               {/* Logo Area */}
+               {/* Center Logo */}
                <div className="mb-6 relative">
                   <div className="absolute -inset-10 bg-blue-500/10 blur-3xl rounded-full animate-pulse"></div>
                   <Cpu size={80} className="text-white/80 relative z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]" />
@@ -123,7 +136,7 @@ export default function KrownFrame() {
                  </span>
                </h1>
 
-               {/* --- NEW: HERO MR SELECTOR (Big & Center) --- */}
+               {/* --- BIG MR SELECTOR --- */}
                <div className="mb-12 relative group animate-in slide-in-from-bottom-5 duration-700 delay-200">
                   <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500/30 to-blue-600/30 rounded-xl blur opacity-30 group-hover:opacity-60 transition duration-500"></div>
                   <div className="relative flex flex-col items-center bg-black/40 border border-white/10 p-6 rounded-xl backdrop-blur-md w-[320px]">
@@ -133,7 +146,6 @@ export default function KrownFrame() {
                       </div>
                       
                       <div className="flex items-center justify-center w-full relative">
-                        {/* Decrement Button */}
                         <button 
                           onClick={() => setMr(prev => Math.max(0, prev - 1))}
                           className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/40 hover:text-white"
@@ -141,7 +153,6 @@ export default function KrownFrame() {
                           <ChevronRight size={24} className="rotate-180" />
                         </button>
                         
-                        {/* Huge Number Display */}
                         <input 
                           type="number" 
                           value={mr}
@@ -151,7 +162,6 @@ export default function KrownFrame() {
                           max="40"
                         />
                         
-                        {/* Increment Button */}
                         <button 
                            onClick={() => setMr(prev => Math.min(40, prev + 1))}
                            className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/40 hover:text-white"
@@ -184,7 +194,21 @@ export default function KrownFrame() {
                         ? 'bg-white/10 border border-white/10 text-white rounded-2xl rounded-tr-none' 
                         : 'bg-black/40 border-l-2 border-cyan-500/50 text-slate-200 rounded-r-2xl border-y border-r border-white/5'}
                     `}>
-                      <p className="whitespace-pre-wrap font-medium">{msg.content}</p>
+                      
+                      {/* --- THE FIX: className is on the DIV, NOT ReactMarkdown --- */}
+                      <div className="prose prose-invert prose-p:leading-relaxed prose-pre:bg-black/50 prose-pre:p-2 prose-pre:rounded-lg max-w-none">
+                        <ReactMarkdown 
+                          components={{
+                            strong: ({node, ...props}: any) => <span className="font-bold text-cyan-300" {...props} />,
+                            ul: ({node, ...props}: any) => <ul className="list-disc pl-4 space-y-1" {...props} />,
+                            li: ({node, ...props}: any) => <li className="marker:text-cyan-500" {...props} />
+                          }}
+                        >
+                          {/* Safety Check for empty content */}
+                          {msg.content || ""}
+                        </ReactMarkdown>
+                      </div>
+
                     </div>
                   </div>
                   {msg.role === 'user' && (
@@ -204,11 +228,10 @@ export default function KrownFrame() {
             </div>
           )}
 
-          {/* --- INPUT AREA (BIGGER NOW) --- */}
+          {/* INPUT AREA */}
           <div className={`p-6 md:p-10 shrink-0 transition-all duration-700 ${!isChatting ? 'translate-y-0 max-w-3xl mx-auto w-full' : 'translate-y-0 w-full'}`}>
             <div className="relative group">
               <div className={`absolute -inset-0.5 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-500 ${!isChatting ? 'opacity-30' : 'opacity-10'}`}></div>
-              {/* Box Wrapper: Added padding (p-4) to make it chunky */}
               <div className="relative flex items-center bg-white/5 border border-white/10 p-3 rounded-2xl focus-within:bg-white/10 transition-all shadow-2xl backdrop-blur-xl">
                 <div className="pl-5 pr-4 flex items-center border-r border-white/10 mr-2">
                   <span className="text-white/50 font-mono text-sm font-bold">{`>`}_</span>
@@ -217,7 +240,6 @@ export default function KrownFrame() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                  // Input: Increased padding (py-6) and font size (text-lg)
                   className="flex-1 bg-transparent px-4 py-6 text-white placeholder-white/30 outline-none text-lg font-medium tracking-wide"
                   placeholder={!isChatting ? "Initiate Neural Link..." : "Enter command..."}
                   autoComplete="off"
