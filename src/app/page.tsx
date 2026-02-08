@@ -1,7 +1,36 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { Send, Cpu, Shield, Terminal, Zap, User, Trash2, Plus, MessageSquare, Settings, Menu, X, Lock, Activity, ChevronRight } from "lucide-react";
+import { Send, Cpu, Shield, Terminal, Plus, Menu, Activity, ChevronRight, Sun, Moon, Flame, Snowflake, Biohazard, Orbit, Drama, ShoppingCart, Trash2, User, Lock, MapPin } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { Poppins } from "next/font/google";
+
+// Initialize Poppins Font
+const poppins = Poppins({ 
+  subsets: ["latin"], 
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-poppins"
+});
+
+// --- TYPES ---
+interface CycleData {
+  cetus: { isDay: boolean; expiry: string };
+  vallis: { isWarm: boolean; expiry: string };
+  cambion: { active: string; expiry: string };
+  zariman: { expiry: string };
+  duviri: { state: string; expiry: string };
+  voidTrader: { active: boolean; startString: string; endString: string; location: string };
+}
+
+// --- HELPER: TIME FORMAT ---
+const formatTimer = (ms: number) => {
+  if (ms < 0) return "00:00";
+  const seconds = Math.floor((ms / 1000) % 60);
+  const minutes = Math.floor((ms / 1000 / 60) % 60);
+  const hours = Math.floor((ms / 1000 / 60 / 60));
+  
+  if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+  return `${minutes}m ${seconds}s`;
+};
 
 export default function KrownFrame() {
   const defaultState = [{ role: "system", content: "Operator, the Void link is stable. Awaiting your command." }];
@@ -9,21 +38,47 @@ export default function KrownFrame() {
   const [input, setInput] = useState("");
   const [mr, setMr] = useState(8); 
   const [loading, setLoading] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false); // Closed by default on mobile
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isClient, setIsClient] = useState(false);
 
+  // --- LIVE DATA STATE ---
+  const [cycles, setCycles] = useState<CycleData | null>(null);
+  const [, setTick] = useState(0);
+
   useEffect(() => {
     setIsClient(true);
-    // Determine if we are on desktop to keep sidebar open by default there
-    if (window.innerWidth >= 768) {
-      setSidebarOpen(true);
-    }
+    if (window.innerWidth >= 768) setSidebarOpen(true);
 
     const saved = localStorage.getItem("krownframe-history");
     const savedMr = localStorage.getItem("krownframe-mr");
     if (saved) { try { setMessages(JSON.parse(saved)); } catch (e) { console.error(e); } }
     if (savedMr) setMr(Number(savedMr));
+
+    // Fetch Cycles
+    const fetchCycles = async () => {
+      try {
+        const res = await fetch('https://api.warframestat.us/pc');
+        const data = await res.json();
+        setCycles({
+          cetus: data.cetusCycle,
+          vallis: data.vallisCycle,
+          cambion: data.cambionCycle,
+          zariman: data.zarimanCycle,
+          duviri: data.duviriCycle,
+          voidTrader: data.voidTrader
+        });
+      } catch (e) { console.error("Void Link Interrupted:", e); }
+    };
+    
+    fetchCycles();
+    const dataInterval = setInterval(fetchCycles, 60000);
+    const tickInterval = setInterval(() => setTick(t => t + 1), 1000);
+
+    return () => {
+      clearInterval(dataInterval);
+      clearInterval(tickInterval);
+    };
   }, []);
 
   useEffect(() => {
@@ -37,17 +92,14 @@ export default function KrownFrame() {
     if (confirm("Sever Void Link? This will wipe your memory.")) {
       setMessages(defaultState);
       localStorage.removeItem("krownframe-history");
-      if (window.innerWidth < 768) setSidebarOpen(false); // Close sidebar on mobile after action
+      if (window.innerWidth < 768) setSidebarOpen(false);
     }
   };
 
   const isChatting = messages.length > 1;
+  useEffect(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), [messages]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-  useEffect(scrollToBottom, [messages]);
-
+  // --- CHAT HANDLER ---
   const handleSend = async (text = input) => {
     if (!text.trim()) return;
     const userText = text;
@@ -95,22 +147,9 @@ export default function KrownFrame() {
   if (!isClient) return null;
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-black text-cyan-50 font-sans selection:bg-cyan-500/30 selection:text-cyan-200 p-0 md:p-4 gap-0 md:gap-4 relative">
+    <div className={`flex h-screen w-full overflow-hidden bg-black text-cyan-50 selection:bg-cyan-500/30 selection:text-cyan-200 p-0 md:p-4 gap-0 md:gap-4 relative ${poppins.className}`}>
       
-      {/* --- CUSTOM ANIMATION STYLES --- */}
-      <style jsx>{`
-        @keyframes gradient-x {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-        .animate-gradient-text {
-          background-size: 200% auto;
-          animation: gradient-x 3s ease infinite;
-        }
-      `}</style>
-
-      {/* --- MOBILE OVERLAY (Darken background when menu is open) --- */}
+      {/* --- MOBILE OVERLAY --- */}
       {sidebarOpen && (
         <div 
           className="fixed inset-0 bg-black/80 z-40 md:hidden backdrop-blur-sm transition-opacity"
@@ -118,9 +157,9 @@ export default function KrownFrame() {
         />
       )}
 
-      {/* --- SIDEBAR (Slide-over on Mobile / Floating on Desktop) --- */}
+      {/* --- SIDEBAR --- */}
       <aside className={`
-        fixed md:relative inset-y-0 left-0 z-50 w-[85%] max-w-[300px] md:w-72 h-full
+        fixed md:relative inset-y-0 left-0 z-50 w-[85%] max-w-[340px] md:w-80 h-full
         bg-zinc-950/95 backdrop-blur-xl border-r border-white/10 md:border-none
         transform transition-transform duration-300 ease-in-out shadow-2xl
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
@@ -134,22 +173,17 @@ export default function KrownFrame() {
                 <Cpu className="text-white group-hover:animate-pulse" size={18} />
              </div>
              <div>
-                <span className="block text-base font-bold tracking-[0.15em] uppercase font-mono text-white">
+                <span className="block text-base font-bold tracking-[0.15em] uppercase text-white">
                     KrownFrame
                 </span>
-                <span className="block text-[9px] text-zinc-500 tracking-widest">SYSTEM V1.0</span>
              </div>
           </div>
-          {/* Close Button (Mobile Only) */}
-          <button onClick={() => setSidebarOpen(false)} className="md:hidden text-zinc-500 hover:text-white">
-            <X size={20} />
-          </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-8">
+        <div className="flex-1 overflow-y-auto p-4 space-y-6 no-scrollbar">
            
-           {/* New Chat Button */}
+           {/* New Chat */}
            <button 
              onClick={() => {
                clearHistory();
@@ -164,59 +198,107 @@ export default function KrownFrame() {
              <ChevronRight size={14} className="text-zinc-600 group-hover:translate-x-1 transition-transform" />
            </button>
 
-           {/* Navigation Links */}
-           <div className="space-y-3">
-              <p className="px-2 text-[9px] uppercase tracking-[0.2em] text-zinc-600 font-bold mb-2">Navigation</p>
-              
-              {/* Active Tab */}
-              <div className="flex items-center justify-between px-4 py-3 bg-zinc-900 rounded-xl border border-white/10 shadow-lg relative overflow-hidden group">
-                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-white"></div>
-                 <div className="flex items-center gap-3 z-10">
-                    <MessageSquare size={16} className="text-white" />
-                    <span className="text-sm font-medium text-white">Active Link</span>
-                 </div>
-                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981] animate-pulse"></div>
-              </div>
-
-              {/* Inactive Tab */}
-              <div className="flex items-center gap-3 px-4 py-3 hover:bg-white/5 rounded-xl border border-transparent hover:border-white/5 text-sm text-zinc-500 transition-colors cursor-not-allowed opacity-60">
-                 <Settings size={16} />
-                 <span>Archives (Locked)</span>
-              </div>
-           </div>
-
            {/* MR Config */}
-           <div className="mt-auto">
-              <p className="px-2 text-[9px] uppercase tracking-[0.2em] text-zinc-600 font-bold mb-3">Operator Config</p>
-              <div className="bg-gradient-to-b from-zinc-900 to-black rounded-2xl p-5 border border-white/10 relative overflow-hidden group shadow-2xl">
-                 <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/5 rounded-full blur-[40px] group-hover:bg-white/10 transition-all duration-700"></div>
-                 <div className="flex justify-between items-start mb-6 relative z-10">
-                    <div className="flex flex-col">
-                       <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold">Mastery Rank</span>
-                       <div className="flex items-baseline gap-1">
-                          <span className="text-3xl font-bold text-white font-mono tracking-tighter">{mr}</span>
-                          <span className="text-3xl font-bold text-white/20 font-mono">/</span>
-                          <span className="text-[10px] text-zinc-600">LVL</span>
-                       </div>
-                    </div>
-                    <Shield size={20} className="text-zinc-600 group-hover:text-white transition-colors" />
-                 </div>
-                 <div className="flex items-center gap-2 relative z-10">
-                    <button 
-                       onClick={() => setMr(m => Math.max(0, m - 1))} 
-                       className="flex-1 h-9 flex items-center justify-center bg-white/5 hover:bg-white/10 border border-white/5 rounded-lg text-zinc-400 hover:text-white transition active:scale-95"
-                    >
-                       -
-                    </button>
-                    <button 
-                       onClick={() => setMr(m => Math.min(40, m + 1))} 
-                       className="flex-1 h-9 flex items-center justify-center bg-white/5 hover:bg-white/10 border border-white/5 rounded-lg text-zinc-400 hover:text-white transition active:scale-95"
-                    >
-                       +
-                    </button>
-                 </div>
-              </div>
+           <div className="flex items-center justify-between p-3 bg-gradient-to-r from-zinc-900 to-black border border-white/10 rounded-xl group hover:border-white/20 transition-all">
+               <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
+                     <Shield size={14} className="text-cyan-400" />
+                  </div>
+                  <div className="flex flex-col">
+                     <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">Mastery</span>
+                     <span className="text-sm font-bold text-white">RANK {mr}</span>
+                  </div>
+               </div>
+               <div className="flex items-center gap-1">
+                  <button onClick={() => setMr(m => Math.max(0, m - 1))} className="p-1.5 hover:bg-white/10 rounded-md text-zinc-500 hover:text-white transition">-</button>
+                  <button onClick={() => setMr(m => Math.min(40, m + 1))} className="p-1.5 hover:bg-white/10 rounded-md text-zinc-500 hover:text-white transition">+</button>
+               </div>
            </div>
+
+           {/* --- LIVE CYCLE MONITOR --- */}
+           {cycles && (
+             <div className="space-y-3 pt-2">
+                <p className="px-2 text-[9px] uppercase tracking-[0.2em] text-zinc-600 font-bold mb-2">Cycle Monitor</p>
+                
+                {/* 1. Earth / Cetus */}
+                <div className="flex items-center justify-between px-4 py-3 bg-zinc-900/40 rounded-xl border border-white/5 hover:bg-white/5 transition-colors">
+                   <span className="text-xs font-bold text-zinc-300">Plains of Eidolon</span>
+                   <div className="flex items-center gap-3">
+                      {cycles.cetus.isDay ? <Sun size={14} className="text-orange-400" /> : <Moon size={14} className="text-blue-400" />}
+                      <span className={`px-2.5 py-1 rounded-md text-[11px] font-mono font-bold min-w-[70px] text-center border ${cycles.cetus.isDay ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'}`}>
+                         {formatTimer(new Date(cycles.cetus.expiry).getTime() - Date.now())}
+                      </span>
+                   </div>
+                </div>
+
+                {/* 2. Orb Vallis */}
+                <div className="flex items-center justify-between px-4 py-3 bg-zinc-900/40 rounded-xl border border-white/5 hover:bg-white/5 transition-colors">
+                   <span className="text-xs font-bold text-zinc-300">Orb Vallis</span>
+                   <div className="flex items-center gap-3">
+                      {cycles.vallis.isWarm ? <Flame size={14} className="text-red-400" /> : <Snowflake size={14} className="text-cyan-400" />}
+                      <span className={`px-2.5 py-1 rounded-md text-[11px] font-mono font-bold min-w-[70px] text-center border ${cycles.vallis.isWarm ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20'}`}>
+                         {formatTimer(new Date(cycles.vallis.expiry).getTime() - Date.now())}
+                      </span>
+                   </div>
+                </div>
+
+                {/* 3. Cambion Drift */}
+                <div className="flex items-center justify-between px-4 py-3 bg-zinc-900/40 rounded-xl border border-white/5 hover:bg-white/5 transition-colors">
+                   <span className="text-xs font-bold text-zinc-300">Cambion Drift</span>
+                   <div className="flex items-center gap-3">
+                      <Biohazard size={14} className="text-yellow-500" />
+                      <span className="px-2.5 py-1 rounded-md text-[11px] font-mono font-bold min-w-[70px] text-center border bg-yellow-500/10 text-yellow-500 border-yellow-500/20">
+                         {formatTimer(new Date(cycles.cambion.expiry).getTime() - Date.now())}
+                      </span>
+                   </div>
+                </div>
+
+                {/* 4. Zariman */}
+                <div className="flex items-center justify-between px-4 py-3 bg-zinc-900/40 rounded-xl border border-white/5 hover:bg-white/5 transition-colors">
+                   <span className="text-xs font-bold text-zinc-300">Zariman</span>
+                   <div className="flex items-center gap-3">
+                      <Orbit size={14} className="text-fuchsia-400" />
+                      <span className="px-2.5 py-1 rounded-md text-[11px] font-mono font-bold min-w-[70px] text-center border bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20">
+                         {cycles.zariman ? formatTimer(new Date(cycles.zariman.expiry).getTime() - Date.now()) : "00:00"}
+                      </span>
+                   </div>
+                </div>
+
+                {/* 5. Duviri */}
+                <div className="flex items-center justify-between px-4 py-3 bg-zinc-900/40 rounded-xl border border-white/5 hover:bg-white/5 transition-colors">
+                   <span className="text-xs font-bold text-zinc-300">Duviri</span>
+                   <div className="flex items-center gap-3">
+                      <span className="text-[10px] uppercase text-zinc-500 font-bold mr-1">{cycles.duviri.state}</span>
+                      <Drama size={14} className="text-emerald-400" />
+                      <span className="px-2.5 py-1 rounded-md text-[11px] font-mono font-bold min-w-[70px] text-center border bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                         {formatTimer(new Date(cycles.duviri.expiry).getTime() - Date.now())}
+                      </span>
+                   </div>
+                </div>
+
+                {/* 6. Baro Ki'Teer */}
+                <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-white/5">
+                    <div className="flex items-center justify-between px-4 py-4 bg-gradient-to-r from-cyan-950/50 to-blue-950/50 rounded-xl border border-cyan-500/20">
+                       <div className="flex items-center gap-3">
+                           <ShoppingCart size={16} className="text-cyan-400" />
+                           <span className="text-sm font-bold text-cyan-100">Baro Ki'Teer</span>
+                       </div>
+                       
+                       <span className={`text-[10px] font-mono font-bold uppercase tracking-wide px-2 py-1 rounded-md border ${cycles.voidTrader?.active ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-zinc-700/20 text-zinc-500 border-zinc-700/20'}`}>
+                          {cycles.voidTrader?.active ? "ARRIVED" : "ON VACATION"}
+                       </span>
+                    </div>
+                </div>
+
+                {/* 8. Weekly Reset */}
+                <div className="mt-4 text-center">
+                   <p className="text-[9px] text-zinc-600 uppercase tracking-widest font-mono">
+                      Circuit Resets in {Math.floor((new Date().setUTCHours(24,0,0,0) + (7 - new Date().getUTCDay()) * 86400000 - Date.now()) / 3600000)}H
+                   </p>
+                </div>
+
+             </div>
+           )}
 
         </div>
 
@@ -235,19 +317,17 @@ export default function KrownFrame() {
         </div>
       </aside>
 
-      {/* --- MAIN CONTENT (Full Screen Mobile / Floating Desktop) --- */}
+      {/* --- MAIN CONTENT --- */}
       <main className="flex-1 flex flex-col relative bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-900 via-black to-black md:rounded-3xl md:border md:border-white/5 overflow-hidden shadow-2xl">
          
-         {/* Mobile Header (Only visible on small screens) */}
          <div className="md:hidden h-16 flex items-center justify-between px-4 border-b border-white/5 bg-black/90 backdrop-blur-md shrink-0">
             <button onClick={() => setSidebarOpen(true)} className="text-white p-2">
                <Menu />
             </button>
             <span className="font-bold text-white tracking-widest text-sm">KROWNFRAME</span>
-            <div className="w-8"></div> {/* Spacer for balance */}
+            <div className="w-8"></div>
          </div>
 
-         {/* 1. LANDING MODE */}
          {!isChatting && (
             <div className="flex-1 flex flex-col items-center justify-center p-6 animate-in fade-in zoom-in duration-700">
                <div className="relative mb-6 md:mb-8 group cursor-default scale-75 md:scale-100">
@@ -266,7 +346,6 @@ export default function KrownFrame() {
                   VOID LINK ACTIVE & MR {mr} CONFIGURATION LOADED
                </p>
 
-               {/* SYSTEM STATUS DISPLAY */}
                <div className="flex flex-wrap justify-center gap-3 md:gap-6 animate-in slide-in-from-bottom-4 fade-in duration-1000 delay-200">
                   <div className="flex items-center gap-2 md:gap-3 px-4 py-2 bg-white/5 border border-white/10 rounded-full">
                      <div className="relative">
@@ -282,17 +361,18 @@ export default function KrownFrame() {
                   </div>
 
                   <div className="flex items-center gap-2 md:gap-3 px-4 py-2 bg-white/5 border border-white/10 rounded-full hidden sm:flex">
-                     <Lock size={12} className="text-zinc-400" />
-                     <div className="text-[10px] md:text-xs font-mono text-zinc-400 tracking-widest uppercase">Protocol: Secure</div>
+                     <div className="flex items-center gap-2">
+                        <Lock size={12} className="text-zinc-400" />
+                        <span className="text-[10px] md:text-xs font-mono text-zinc-400 tracking-widest uppercase">PROTOCOL: SECURE</span>
+                     </div>
                   </div>
                </div>
             </div>
          )}
 
-         {/* 2. CHAT MODE */}
          {isChatting && (
             <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 md:space-y-8 scroll-smooth">
-               {messages.map((msg, i) => (
+               {messages.map((msg: any, i) => (
                   <div key={i} className={`flex gap-3 md:gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2 duration-500`}>
                      {msg.role === 'system' && (
                         <div className="w-8 h-8 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center shrink-0 mt-1">
@@ -309,9 +389,9 @@ export default function KrownFrame() {
                         <div className="prose prose-invert prose-p:leading-relaxed prose-pre:bg-black/50 prose-pre:p-2 prose-pre:rounded-lg max-w-none">
                            <ReactMarkdown 
                               components={{
-                                 strong: ({node, ...props}: any) => <span className="font-bold text-white" {...props} />,
-                                 ul: ({node, ...props}: any) => <ul className="list-disc pl-4 space-y-1" {...props} />,
-                                 li: ({node, ...props}: any) => <li className="marker:text-zinc-500" {...props} />
+                                 strong: ({...props}: any) => <span className="font-bold text-white" {...props} />,
+                                 ul: ({...props}: any) => <ul className="list-disc pl-4 space-y-1" {...props} />,
+                                 li: ({...props}: any) => <li className="marker:text-zinc-500" {...props} />
                               }}
                            >
                               {msg.content || ""}
@@ -340,13 +420,9 @@ export default function KrownFrame() {
             </div>
          )}
 
-         {/* 3. INPUT AREA (Tactical Glass Console) */}
          <div className="p-4 md:p-8 shrink-0 z-20 pb-6 md:pb-8">
             <div className="max-w-4xl mx-auto relative group">
-               {/* Outer Glow */}
                <div className="absolute -inset-1 bg-gradient-to-r from-zinc-700/30 to-zinc-800/30 rounded-[2rem] blur-xl opacity-0 group-hover:opacity-100 transition duration-700"></div>
-               
-               {/* Main Input Console */}
                <div className="relative flex items-center bg-zinc-900/60 border border-white/10 p-2 md:p-4 rounded-[1.5rem] md:rounded-[2rem] focus-within:border-white/40 focus-within:bg-zinc-900/80 transition-all shadow-[0_0_30px_rgba(0,0,0,0.5)] backdrop-blur-3xl">
                   <input
                      value={input}
@@ -364,10 +440,9 @@ export default function KrownFrame() {
                      <Send size={18} className="md:w-5 md:h-5" />
                   </button>
                </div>
-               
                <div className="text-center mt-3 md:mt-4">
-                  <p className="text-[9px] md:text-[10px] text-zinc-700 font-mono tracking-[0.2em] uppercase opacity-60">
-                     KrownFrame v1.0 // System Online
+                  <p className="text-[10px] text-zinc-600 font-mono tracking-widest opacity-50 uppercase">
+                     © 2026 KROWNFRAME // All Rights Reserved
                   </p>
                </div>
             </div>
