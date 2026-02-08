@@ -1,6 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { Send, Cpu, Shield, Terminal, Plus, Menu, Activity, ChevronRight, Sun, Moon, Flame, Snowflake, Biohazard, Orbit, Drama, ShoppingCart, Trash2, User, Lock, MapPin } from "lucide-react";
+import { Send, Cpu, Shield, Terminal, Plus, Menu, Activity, ChevronRight, Sun, Moon, Flame, Snowflake, Biohazard, Orbit, Drama, ShoppingCart, Trash2, User, Lock, Calculator, Heart, Zap, RotateCcw } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { Poppins } from "next/font/google";
 
@@ -45,6 +45,12 @@ export default function KrownFrame() {
   // --- LIVE DATA STATE ---
   const [cycles, setCycles] = useState<CycleData | null>(null);
   const [, setTick] = useState(0);
+
+  // --- SIMULACRUM STATE ---
+  const [simHealth, setSimHealth] = useState<string>("");
+  const [simArmor, setSimArmor] = useState<string>("");
+  const [simShields, setSimShields] = useState<string>("");
+  const [simDr, setSimDr] = useState<string>("");
 
   useEffect(() => {
     setIsClient(true);
@@ -96,6 +102,13 @@ export default function KrownFrame() {
     }
   };
 
+  const resetSimulacrum = () => {
+    setSimHealth("");
+    setSimArmor("");
+    setSimShields("");
+    setSimDr("");
+  };
+
   const isChatting = messages.length > 1;
   useEffect(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), [messages]);
 
@@ -144,11 +157,45 @@ export default function KrownFrame() {
     setLoading(false);
   };
 
+  // --- SIMULACRUM MATH ---
+  const health = Number(simHealth) || 0;
+  const armor = Number(simArmor) || 0;
+  const shields = Number(simShields) || 0;
+  const extraDr = Math.min(Number(simDr) || 0, 99.99) / 100;
+
+  const armorDr = armor / (armor + 300);
+  const healthEhp = health / ((1 - armorDr) * (1 - extraDr) || 1);
+  const shieldEhp = shields / (0.5 * (1 - extraDr) || 1); // Shields have innate 50% DR
+  const totalEhp = Math.round(healthEhp + shieldEhp);
+  const totalDrPercent = (1 - ((1 - armorDr) * (1 - extraDr))) * 100;
+
   if (!isClient) return null;
 
   return (
     <div className={`flex h-screen w-full overflow-hidden bg-black text-cyan-50 selection:bg-cyan-500/30 selection:text-cyan-200 p-0 md:p-4 gap-0 md:gap-4 relative ${poppins.className}`}>
       
+      <style jsx global>{`
+        /* --- GLOBAL STYLES --- */
+        @keyframes gradient-x {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        .animate-gradient-text {
+          background-size: 200% auto;
+          animation: gradient-x 3s ease infinite;
+        }
+        /* Hide scrollbar for Chrome, Safari and Opera */
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        /* Hide scrollbar for IE, Edge and Firefox */
+        .no-scrollbar {
+          -ms-overflow-style: none;  /* IE and Edge */
+          scrollbar-width: none;  /* Firefox */
+        }
+      `}</style>
+
       {/* --- MOBILE OVERLAY --- */}
       {sidebarOpen && (
         <div 
@@ -163,11 +210,11 @@ export default function KrownFrame() {
         bg-zinc-950/95 backdrop-blur-xl border-r border-white/10 md:border-none
         transform transition-transform duration-300 ease-in-out shadow-2xl
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
-        md:translate-x-0 md:flex flex-col
+        md:translate-x-0 flex flex-col /* CHANGED: Always flex-col for proper scrolling */
         md:bg-zinc-950/90 md:rounded-3xl md:border md:shadow-2xl
       `}>
         {/* Header */}
-        <div className="h-20 flex items-center justify-between px-6 border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent md:rounded-t-3xl">
+        <div className="h-20 flex items-center justify-between px-6 border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent md:rounded-t-3xl shrink-0">
           <div className="flex items-center gap-3 group cursor-default">
              <div className="w-9 h-9 rounded-lg bg-zinc-900 border border-white/10 flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.05)] group-hover:border-zinc-500 transition-colors">
                 <Cpu className="text-white group-hover:animate-pulse" size={18} />
@@ -180,7 +227,7 @@ export default function KrownFrame() {
           </div>
         </div>
 
-        {/* Content */}
+        {/* Content (Scrollable) */}
         <div className="flex-1 overflow-y-auto p-4 space-y-6 no-scrollbar">
            
            {/* New Chat */}
@@ -290,8 +337,102 @@ export default function KrownFrame() {
                     </div>
                 </div>
 
+                {/* 7. THE SIMULACRUM (EHP CALCULATOR) */}
+                <div className="mt-4 pt-4 border-t border-white/5">
+                   {/* HEADER WITH RESET BUTTON */}
+                   <div className="flex items-center justify-between mb-3 px-1">
+                      <div className="flex items-center gap-2">
+                         <Calculator size={14} className="text-red-400" />
+                         <p className="text-[9px] uppercase tracking-[0.2em] text-zinc-500 font-bold">The Simulacrum</p>
+                      </div>
+                      <button 
+                         onClick={resetSimulacrum}
+                         className="text-zinc-600 hover:text-white transition-colors"
+                         title="Reset Calculator"
+                      >
+                         <RotateCcw size={12} />
+                      </button>
+                   </div>
+                   
+                   <div className="space-y-2">
+                      {/* Inputs Row 1 */}
+                      <div className="flex gap-2">
+                         <div className="flex-1 bg-zinc-900 border border-white/10 rounded-lg p-2 focus-within:border-red-500/50 transition-colors">
+                            <div className="flex items-center gap-1 mb-1">
+                               <Heart size={10} className="text-red-400"/>
+                               <span className="text-[8px] text-zinc-500 uppercase font-bold tracking-wider">Health</span>
+                            </div>
+                            <input 
+                               type="number" 
+                               className="bg-transparent border-none outline-none text-xs text-white w-full font-mono placeholder-zinc-700" 
+                               placeholder="0" 
+                               value={simHealth} 
+                               onChange={e => setSimHealth(e.target.value)} 
+                            />
+                         </div>
+                         <div className="flex-1 bg-zinc-900 border border-white/10 rounded-lg p-2 focus-within:border-orange-500/50 transition-colors">
+                            <div className="flex items-center gap-1 mb-1">
+                               <Shield size={10} className="text-orange-400"/>
+                               <span className="text-[8px] text-zinc-500 uppercase font-bold tracking-wider">Armor</span>
+                            </div>
+                            <input 
+                               type="number" 
+                               className="bg-transparent border-none outline-none text-xs text-white w-full font-mono placeholder-zinc-700" 
+                               placeholder="0" 
+                               value={simArmor} 
+                               onChange={e => setSimArmor(e.target.value)} 
+                            />
+                         </div>
+                      </div>
+                      
+                      {/* Inputs Row 2 */}
+                      <div className="flex gap-2">
+                         <div className="flex-1 bg-zinc-900 border border-white/10 rounded-lg p-2 focus-within:border-blue-500/50 transition-colors">
+                            <div className="flex items-center gap-1 mb-1">
+                               <Activity size={10} className="text-blue-400"/>
+                               <span className="text-[8px] text-zinc-500 uppercase font-bold tracking-wider">Shields</span>
+                            </div>
+                            <input 
+                               type="number" 
+                               className="bg-transparent border-none outline-none text-xs text-white w-full font-mono placeholder-zinc-700" 
+                               placeholder="0" 
+                               value={simShields} 
+                               onChange={e => setSimShields(e.target.value)} 
+                            />
+                         </div>
+                         <div className="flex-1 bg-zinc-900 border border-white/10 rounded-lg p-2 focus-within:border-purple-500/50 transition-colors">
+                            <div className="flex items-center gap-1 mb-1">
+                               <Zap size={10} className="text-purple-400"/>
+                               <span className="text-[8px] text-zinc-500 uppercase font-bold tracking-wider">Extra DR %</span>
+                            </div>
+                            <input 
+                               type="number" 
+                               max="99"
+                               className="bg-transparent border-none outline-none text-xs text-white w-full font-mono placeholder-zinc-700" 
+                               placeholder="0" 
+                               value={simDr} 
+                               onChange={e => setSimDr(e.target.value)} 
+                            />
+                         </div>
+                      </div>
+
+                      {/* Results Card */}
+                      <div className="p-3 mt-2 bg-gradient-to-r from-red-950/30 to-orange-950/30 border border-red-500/20 rounded-xl flex justify-between items-center">
+                         <div className="flex flex-col">
+                            <span className="text-[9px] text-red-400/80 uppercase font-bold tracking-widest">Total EHP</span>
+                            <span className="text-lg font-bold font-mono text-red-100">{totalEhp.toLocaleString()}</span>
+                         </div>
+                         <div className="h-8 w-px bg-white/10 mx-2"></div>
+                         <div className="flex flex-col items-end">
+                            <span className="text-[9px] text-orange-400/80 uppercase font-bold tracking-widest">Damage Red.</span>
+                            <span className="text-sm font-mono text-orange-100">{totalDrPercent.toFixed(1)}%</span>
+                         </div>
+                      </div>
+                   </div>
+                </div>
+
                 {/* 8. Weekly Reset */}
-                <div className="mt-4 text-center">
+                <div className="mt-4 text-center pb-4">
                    <p className="text-[9px] text-zinc-600 uppercase tracking-widest font-mono">
                       Circuit Resets in {Math.floor((new Date().setUTCHours(24,0,0,0) + (7 - new Date().getUTCDay()) * 86400000 - Date.now()) / 3600000)}H
                    </p>
@@ -303,7 +444,7 @@ export default function KrownFrame() {
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-white/5 bg-black/20 md:rounded-b-3xl">
+        <div className="p-6 border-t border-white/5 bg-black/20 md:rounded-b-3xl shrink-0">
            <button 
              onClick={() => {
                 clearHistory();
@@ -396,6 +537,10 @@ export default function KrownFrame() {
                            >
                               {msg.content || ""}
                            </ReactMarkdown>
+                           {/* THE TYPEWRITER CURSOR */}
+                           {msg.role === 'system' && i === messages.length - 1 && loading && (
+                              <span className="inline-block w-2 h-4 bg-cyan-400 ml-1 animate-pulse align-middle shadow-[0_0_8px_rgba(34,211,238,0.8)]"></span>
+                           )}
                         </div>
                      </div>
 
