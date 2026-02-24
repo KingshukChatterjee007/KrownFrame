@@ -1,40 +1,29 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/pages/api-reference/create-next-app).
+KrownFrame: Architectural Overview
+KrownFrame is a specialized terminal interface designed for Warframe operators, providing real-time data integration, advanced combat calculations, and persistent session management. The system is built using a modern full-stack architecture to ensure high performance and reliability.
 
-## Getting Started
+Core Technical Features
+Real-Time Data Synchronization: The interface establishes a stable connection to external game state APIs to monitor active mission cycles, including Cetus, Orb Vallis, and the Cambion Drift.
 
-First, run the development server:
+The Simulacrum (Combat Logic): An integrated Effective Health Pool (EHP) calculator that processes complex combat variables such as base health, armor-based damage reduction, and additional mitigation percentages to provide precise survivability metrics.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Persistent Session Protocol: Utilizes local storage mechanisms to preserve chat history and mastery rank configurations across browser refreshes, ensuring a seamless user experience.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The Vault (Data Encoding): Implements a URL-based sharing system where complex build configurations are serialized into Base64 strings, allowing for instant data transfer via query parameters.
 
-You can start editing the page by modifying `pages/index.tsx`. The page auto-updates as you edit the file.
+Bulletproof Proxy Architecture: Employs a dedicated server-side API route to act as a bridge for data fetching, effectively bypassing client-side security restrictions and network instability.
 
-[API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.ts`.
+Technical Stack
+Framework: Next.js with React for efficient server-side rendering and client-side interactivity.
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) instead of React pages.
+Styling: Tailwind CSS for a high-fidelity, responsive terminal aesthetic.
 
-This project uses [`next/font`](https://nextjs.org/docs/pages/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Typography: Integrated Poppins font for optimal readability in data-dense environments.
 
-## Learn More
+Icons: Lucide-React for clear, functional iconography across the dashboard.
 
-To learn more about Next.js, take a look at the following resources:
+Content Rendering: React-Markdown for dynamic processing of system messages and technical documentation.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn-pages-router) - an interactive Next.js tutorial.
+Security and Deployment
+Environment Configuration: Sensitive keys and system parameters are managed through encrypted environment variables.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/pages/building-your-application/deploying) for more details.
+Cross-Platform Compatibility: Optimized for both high-resolution desktop displays and mobile hardware, utilizing flexible layout logic to maintain architectural integrity across devices.
